@@ -39,5 +39,24 @@ sacarUna :: Eq a => a -> [a] -> [a]
 sacarUna e = recr (\x xs rec -> if x == e then xs else x : rec) []
 
 insertarOrdenado :: Ord a => a -> [a] -> [a]
-
 insertarOrdenado e = recr (\x xs rec -> if e < x then (e : x : xs) else x : rec) [e]
+
+-- Ejercicio 7
+genLista :: a -> (a -> a) -> Int -> [a]
+genLista a f n = take n $ lista f a
+
+lista :: (a -> a) -> a -> [a]
+lista f x = x : (lista f $ f x)
+
+desdeHasta :: Int -> Int -> [Int]
+desdeHasta x y = drop x (genLista 0 (+1) $ y + 1)
+
+-- Ejercicio 8
+
+mapPares :: (a -> b -> c) -> [(a, b)] -> [c]
+mapPares f = foldr (\tup rec -> uncurry f tup : rec) []
+
+armarPares :: [a] -> [b] -> [(a, b)]
+armarPares [] _ = []
+armarPares _ [] = []
+armarPares (x:xs) (y:ys) = (x,y) : (armarPares xs ys)
