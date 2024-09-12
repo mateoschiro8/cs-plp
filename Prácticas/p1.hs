@@ -57,6 +57,106 @@ mapPares :: (a -> b -> c) -> [(a, b)] -> [c]
 mapPares f = foldr (\tup rec -> uncurry f tup : rec) []
 
 armarPares :: [a] -> [b] -> [(a, b)]
-armarPares [] _ = []
-armarPares _ [] = []
-armarPares (x:xs) (y:ys) = (x,y) : (armarPares xs ys)
+armarPares = foldr (\x rec ys -> if null ys then [] else (x, head ys) : rec (tail ys)) (const [])
+
+mapDoble :: (a -> b -> c) -> [a] -> [b] -> [c]
+mapDoble f = \xs ys -> mapPares f (armarPares xs ys)
+
+-- Ejercicio 10
+foldNat :: (Int -> b -> b) -> b -> Int -> b
+foldNat f z 0 = z
+foldNat f z n = f n (foldNat f z (n - 1))
+
+potencia :: Int -> Int -> Int
+potencia base = foldNat (\_ acc -> base * acc) 1  
+
+-- Ejercicio 11
+data Polinomio a = X 
+                 | Cte a 
+                 | Suma (Polinomio a) (Polinomio a) 
+                 | Prod (Polinomio a) (Polinomio a)
+
+foldPoli :: b -> (a -> b) -> (b -> b -> b) -> (b -> b -> b) -> Polinomio a -> b
+foldPoli fX fCte fSuma fProd X = fX
+foldPoli fX fCte fSuma fProd (Cte a) = fCte a
+foldPoli fX fCte fSuma fProd (Suma p1 p2) = fSuma (rec p1) (rec p2)
+    where rec = foldPoli fX fCte fSuma fProd
+foldPoli fX fCte fSuma fProd (Prod p1 p2) = fProd (rec p1) (rec p2)
+    where rec = foldPoli fX fCte fSuma fProd
+
+
+evaluar :: Num a => a -> Polinomio a -> a
+evaluar n = foldPoli n id (+) (*)
+
+-- polinomioEjemplo = Suma (Prod (Cte 2) (Prod X X)) (Suma (Prod (Cte 3) X) (Cte 1))
+--                     2x^2 + 3x + 1 
+
+-- Ejercicio 12
+data AB a = Nil | Bin (AB a) a (AB a)
+
+abEj :: AB Int
+abEj = Bin (Bin Nil 3 (Bin Nil 4 Nil)) 5 (Bin Nil 8 (Bin Nil 9 Nil))
+
+foldAB :: b -> (a -> b -> b -> b) -> AB a -> b
+foldAB cNil cArbol t = case t of
+        Nil -> cNil
+        Bin i r d -> cArbol r (rec i) (rec d)
+    where rec = foldAB cNil cArbol
+
+recAB :: b -> (a -> AB a -> AB a -> b -> b -> b) -> AB a -> b
+recAB cNil cArbol t = case t of
+        Nil -> cNil
+        Bin i r d -> cArbol r i d (rec i) (rec d)
+    where rec = recAB cNil cArbol
+
+esNil :: AB a -> Bool 
+esNil Nil = True 
+esNil _ = False
+
+altura :: AB a -> Int
+altura = foldAB 0 (\r recI recD -> 1 + (max recI recD))
+
+cantNodos :: AB a -> Int
+cantNodos = foldAB 0 (\r recI recD -> 1 + recI + recD)
+
+mejorSegunAB :: (a -> a -> Bool) -> AB a -> a
+mejorSegunAB f (Bin i r d) = foldAB r (\r recI recD -> if (f r recI && f r recD) then r else (if (f recI r && f recI recD) then recI else recD)) (Bin i r d)
+
+esABB :: Ord a => AB a -> Bool
+esABB = recAB True (\r i d recI recD -> mayor i r && menor d r && recI && recD)
+    where   mayor Nil _ = True 
+            mayor (Bin _ x _) y = x <= y 
+            menor Nil _ = True 
+            menor (Bin _ x _) y = y <= x
+
+-- Ejercicio 14
+data AIH a = Hoja a | Binh (AIH a) (AIH a)
+
+aihEj = Binh (Binh (Hoja 3) (Hoja 4)) (Hoja 2)
+
+foldAIH :: (a -> b) -> (b -> b -> b) -> AIH a -> b
+foldAIH cHoja cArbol t = case t of
+        Hoja c -> cHoja c
+        Binh i d -> cArbol (rec i) (rec d)
+    where rec = foldAIH cHoja cArbol
+
+alturaAIH :: AIH a -> Int
+alturaAIH = foldAIH (const 1) (\i d -> 1 + max i d)
+
+tamañoAIH :: AIH a -> Int
+tamañoAIH = foldAIH (const 1) (\i d -> i + d)
+
+-- Ejercicio 15
+data RoseTree a = Rose a [RoseTree a]
+
+rtEj = Rose 3 [Rose 4 [Rose 8 []], Rose 5 [] , Rose 9 [Rose 1 [], Rose 2 [], Rose 6 []]]
+
+foldRose :: (a -> [b] -> b) -> RoseTree a -> b
+foldRose f (Rose n hijos) = f n (map rec hijos)
+    where rec = foldRose f
+
+hojasRT :: RoseTree a -> [a] 
+hojasRT = foldRose (\h rec -> if null rec then [h] else concat rec)
+
+distanciasRT :: RoseTree a -> [(a, Int)]
+distanciasRT = foldRose (\h rec -> if null rec then (h,0):(concat rec) else map (\(a,b) -> (a, b + 1)) (concat rec))
